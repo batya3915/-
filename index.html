@@ -860,12 +860,12 @@ let paymentStatus={paid:false,freeUsed:false};
 async function checkPaymentStatus(){
 try{const userId=lsGet('userId')||('user_'+Date.now()+'_'+Math.random().toString(36).substr(2,9));
 if(!lsGet('userId'))lsSet('userId',userId);
-const r=await fetch(SERVER_URL+'/check-status/'+userId);
+const r=await fetch(SERVER_URL+'?action=check-status&userId='+userId);
 if(r.ok){const d=await r.json();paymentStatus.paid=d.paid||false;paymentStatus.freeUsed=d.freeUsed||false}}catch(e){}}
 
 async function createPayment(){
 try{const userId=lsGet('userId');
-const r=await fetch(SERVER_URL+'/create-payment',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userId,amount:50})});
+const r=await fetch(SERVER_URL+'?action=create-payment',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userId:userId,amount:50})});
 if(r.ok){const d=await r.json();return d.confirmationUrl}}catch(e){}return null}
 
 function showPaymentModal(){document.getElementById('paymentModal').classList.add('open')}
@@ -873,14 +873,12 @@ function hidePaymentModal(){document.getElementById('paymentModal').classList.re
 
 document.addEventListener('click',function(e){
 if(e.target.id==='payNowBtn'){e.target.disabled=true;e.target.textContent='Создаём...';
-createPayment().then(function(url){if(url){window.open(url,'_blank');toast('Оплати в новой вкладке')}else{toast('Ошибка')}
+createPayment().then(function(url){if(url){window.open(url,'_blank');toast('Оплата в новой вкладке')}else{toast('Ошибка сервера')}
 e.target.disabled=false;e.target.textContent='💳 Оплатить'})}
 else if(e.target.id==='payCancelBtn'){hidePaymentModal()}});
 
 function addSecretLocks(){
 if(paymentStatus.paid)return;
-
-// PRO бейдж на карточке секретки на главной
 var secretCard=document.querySelector('[data-arg="secret"]');
 if(secretCard&&!secretCard.querySelector('.pro-badge')){
 var badge=document.createElement('span');
@@ -889,33 +887,24 @@ badge.textContent='PRO';
 badge.style.cssText='position:absolute;top:12px;right:12px;background:var(--amber);color:#1a1206;font-size:11px;font-weight:900;border-radius:999px;padding:2px 8px';
 secretCard.style.position='relative';
 secretCard.appendChild(badge)}
-
-// PRO маркеры на заголовках
 var h5s=document.querySelectorAll('h5');
 h5s.forEach(function(h){
 if(h.textContent.includes('Анимация')&&!h.querySelector('.pro-badge')){
 h.innerHTML+=' <span class="pro-badge" style="background:var(--amber);color:#1a1206;font-size:10px;font-weight:900;border-radius:4px;padding:2px 6px;margin-left:6px">PRO</span>'}
 if(h.textContent.includes('Эффект')&&!h.querySelector('.pro-badge')){
 h.innerHTML+=' <span class="pro-badge" style="background:var(--amber);color:#1a1206;font-size:10px;font-weight:900;border-radius:4px;padding:2px 6px;margin-left:6px">PRO</span>'}});
-
-// Блокировка платных кнопок
 var allBtns=document.querySelectorAll('button');
 allBtns.forEach(function(btn){
 var txt=btn.textContent.trim();
-// Платные таймеры (30с, 1мин, 5мин, 1ч)
 if(['30с','1мин','5мин','1ч'].includes(txt)&&!btn.classList.contains('locked')){
 btn.style.opacity='0.5';btn.style.cursor='not-allowed';btn.innerHTML+=' 🔒';btn.classList.add('locked');
 btn.addEventListener('click',function(e){e.preventDefault();e.stopPropagation();showPaymentModal()},true)}
-// Платные анимации (Волна, Fade-in)
 if(['Волна','Fade-in'].includes(txt)&&!btn.classList.contains('locked')){
 btn.style.opacity='0.5';btn.style.cursor='not-allowed';btn.innerHTML+=' 🔒';btn.classList.add('locked');
 btn.addEventListener('click',function(e){e.preventDefault();e.stopPropagation();showPaymentModal()},true)}
-// Платные эффекты (Звёзды, Сердечки)
 if(['Звёзды','Сердечки'].includes(txt)&&!btn.classList.contains('locked')){
 btn.style.opacity='0.5';btn.style.cursor='not-allowed';btn.innerHTML+=' 🔒';btn.classList.add('locked');
 btn.addEventListener('click',function(e){e.preventDefault();e.stopPropagation();showPaymentModal()},true)}});
-
-// Кнопка "Разблокировать PRO" на странице секретки
 var createBtn=document.querySelector('[data-act="sCreate"]');
 if(createBtn&&!document.getElementById('unlockProBtn')){
 var unlockBtn=document.createElement('button');
@@ -940,7 +929,7 @@ if(!paymentStatus.paid&&!paymentStatus.freeUsed){p.d=5;p.a='none';p.e='none';pay
 origCreate()};
 
 setTimeout(checkPaymentStatus,2000);
-setTimeout(addSecretLocks, 3000);
+setTimeout(addSecretLocks,3000);
 </script>
 </body>
 </html>
