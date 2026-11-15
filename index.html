@@ -856,6 +856,7 @@ try{init()}catch(e){toast('Ошибка запуска: '+e.message)}
 <script>
 const SERVER_URL='https://functions.yandexcloud.net/d4edlasmsjm5n6c0aa26';
 let paymentStatus={paid:false,freeUsed:false};
+let paymentCheckInterval=null;
 
 async function checkPaymentStatus(){
 try{const userId=lsGet('userId')||('user_'+Date.now()+'_'+Math.random().toString(36).substr(2,9));
@@ -866,17 +867,37 @@ if(r.ok){const d=await r.json();paymentStatus.paid=d.paid||false;paymentStatus.f
 async function createPayment(){
 try{const userId=lsGet('userId');
 const r=await fetch(SERVER_URL+'?action=create-payment',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userId:userId,amount:50})});
-if(r.ok){const d=await r.json();return d.confirmationUrl}}catch(e){}return null}
+if(r.ok){const d=await r.json();if(d.paymentId)lsSet('lastPaymentId',d.paymentId);return d.confirmationUrl}}catch(e){}return null}
 
-function showPaymentModal(){document.getElementById('paymentModal').classList.add('open')}
+async function checkPaymentById(paymentId){
+try{const r=await fetch(SERVER_URL+'?action=check-payment&paymentId='+paymentId);
+if(r.ok){const d=await r.json();return d.paid||d.status==='succeeded'}}catch(e){}return false}
+
+function startPaymentCheck(){
+const paymentId=lsGet('lastPaymentId');
+if(!paymentId)return;
+if(paymentCheckInterval)clearInterval(paymentCheckInterval);
+paymentCheckInterval=setInterval(async function(){
+const paid=await checkPaymentById(paymentId);
+if(paid){clearInterval(paymentCheckInterval);lsDel('lastPaymentId');unlockPro()}
+},5000)}
+
+function unlockPro(){
+paymentStatus.paid=true;lsSet('paid','true');lsDel('lastPaymentId');
+document.querySelectorAll('.locked').forEach(function(b){b.style.opacity='1';b.style.cursor='pointer';b.classList.remove('locked');var t=b.textContent.replace(' 🔒','');b.textContent=t});
+document.querySelectorAll('.pro-badge').forEach(function(b){b.remove()});
+var ub=document.getElementById('unlockProBtn');if(ub)ub.remove();
+toast('🎉 PRO разблокирован!')}
+  function showPaymentModal(){document.getElementById('paymentModal').classList.add('open')}
 function hidePaymentModal(){document.getElementById('paymentModal').classList.remove('open')}
 
 document.addEventListener('click',function(e){
 if(e.target.id==='payNowBtn'){e.target.disabled=true;e.target.textContent='Создаём...';
-createPayment().then(function(url){if(url){window.open(url,'_blank');toast('Оплата в новой вкладке')}else{toast('Ошибка сервера')}
+createPayment().then(function(url){
+if(url){window.open(url,'_blank');toast('Оплата в новой вкладке. Проверка запущена...');startPaymentCheck()}
+else{toast('Ошибка создания платежа')}
 e.target.disabled=false;e.target.textContent='💳 Оплатить'})}
 else if(e.target.id==='payCancelBtn'){hidePaymentModal()}});
-
 function addSecretLocks(){
 if(paymentStatus.paid)return;
 var secretCard=document.querySelector('[data-arg="secret"]');
@@ -928,7 +949,11 @@ if(!paymentStatus.paid&&paymentStatus.freeUsed){showPaymentModal();return}
 if(!paymentStatus.paid&&!paymentStatus.freeUsed){p.d=5;p.a='none';p.e='none';paymentStatus.freeUsed=true;lsSet('freeUsed','true');toast('Первая бесплатно!')}
 origCreate()};
 
-setTimeout(checkPaymentStatus,2000);
+setTimeout(function(){
+checkPaymentStatus();
+if(lsGet('paid')==='true'){paymentStatus.paid=true;unlockPro()}
+else if(lsGet('lastPaymentId')){startPaymentCheck()}
+},1000);
 setTimeout(addSecretLocks,3000);
 </script>
 </body>
