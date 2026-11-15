@@ -832,5 +832,57 @@ var m=location.hash.match(/[#&]s=([^&]+)/);
 if(m){try{var p=JSON.parse(b64dec(decodeURIComponent(m[1])));renderReveal(p);(window.__whenSplashDone||function(f){f()})(function(){beginCountdown(p,m[1],false)})}catch(e){toast('Ссылка повреждена');showView('home')}}}
 try{init()}catch(e){toast('Ошибка запуска: '+e.message)}
 </script>
+  <style>
+.payment-modal{position:fixed;inset:0;z-index:200;background:rgba(8,10,14,.85);display:none;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(8px)}.payment-modal.open{display:flex;animation:vi .3s ease}.payment-box{background:var(--card);border:1px solid var(--line);border-radius:22px;padding:24px;max-width:400px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.5)}.payment-box h3{font-size:20px;font-weight:900;margin-bottom:12px}.payment-features{text-align:left;background:var(--bg2);border-radius:11px;padding:12px;margin:16px 0}.payment-features div{padding:6px 0;font-size:13px;color:var(--ink)}.payment-features div:before{content:'✓';color:var(--teal);font-weight:900;margin-right:8px}
+</style>
+
+<div class="payment-modal" id="paymentModal">
+<div class="payment-box">
+<h3>Разблокировать PRO 🚀</h3>
+<p style="color:var(--muted);font-size:13px;margin:8px 0">Открой все возможности секретной открытки</p>
+<div class="payment-features">
+<div>Любое время ожидания (до 1 часа)</div>
+<div>3 анимации текста</div>
+<div>3 эффекта при открытии</div>
+<div>Все стили открыток</div>
+</div>
+<div style="font-size:32px;font-weight:900;color:var(--amber);margin:16px 0">50 ₽</div>
+<button class="btn btn-primary" id="payNowBtn">💳 Оплатить</button>
+<button class="btn btn-ghost" id="payCancelBtn" style="margin-top:8px">Отмена</button>
+<div style="font-size:11px;color:var(--muted);margin-top:12px">Оплата через ЮKassa</div>
+</div>
+</div>
+
+<script>
+const SERVER_URL='https://functions.yandexcloud.net/d4edlasmsjm5n6c0aa26';
+let paymentStatus={paid:false,freeUsed:false};
+
+async function checkPaymentStatus(){
+try{const userId=lsGet('userId')||('user_'+Date.now()+'_'+Math.random().toString(36).substr(2,9));
+if(!lsGet('userId'))lsSet('userId',userId);
+const r=await fetch(SERVER_URL+'/check-status/'+userId);
+if(r.ok){const d=await r.json();paymentStatus.paid=d.paid||false;paymentStatus.freeUsed=d.freeUsed||false}}catch(e){}}
+
+async function createPayment(){
+try{const userId=lsGet('userId');
+const r=await fetch(SERVER_URL+'/create-payment',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userId,amount:50})});
+if(r.ok){const d=await r.json();return d.confirmationUrl}}catch(e){}return null}
+
+document.addEventListener('click',function(e){
+if(e.target.id==='payNowBtn'){e.target.disabled=true;e.target.textContent='Создаём...';
+createPayment().then(function(url){if(url){window.open(url,'_blank');toast('Оплати в новой вкладке')}else{toast('Ошибка')}
+e.target.disabled=false;e.target.textContent='💳 Оплатить'})}
+else if(e.target.id==='payCancelBtn'){document.getElementById('paymentModal').classList.remove('open')}});
+
+const origCreate=createSecret;
+createSecret=async function(){
+const p=readSecret();if(!p.n||!p.t){toast('Заполни имя и текст');return}
+await checkPaymentStatus();
+if(!paymentStatus.paid&&paymentStatus.freeUsed){document.getElementById('paymentModal').classList.add('open');return}
+if(!paymentStatus.paid&&!paymentStatus.freeUsed){p.d=5;p.a='none';p.e='none';paymentStatus.freeUsed=true;lsSet('freeUsed','true');toast('Первая бесплатно!')}
+origCreate()};
+
+setTimeout(checkPaymentStatus,2000);
+</script>
 </body>
 </html>
