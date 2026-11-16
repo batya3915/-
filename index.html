@@ -877,16 +877,19 @@ function startPaymentCheck(){
 const paymentId=lsGet('lastPaymentId');
 if(!paymentId)return;
 if(paymentCheckInterval)clearInterval(paymentCheckInterval);
+checkPaymentById(paymentId).then(function(paid){
+if(paid){unlockPro();return}
 paymentCheckInterval=setInterval(async function(){
-const paid=await checkPaymentById(paymentId);
-if(paid){clearInterval(paymentCheckInterval);lsDel('lastPaymentId');unlockPro()}
-},5000)}
+const ok=await checkPaymentById(paymentId);
+if(ok){clearInterval(paymentCheckInterval);unlockPro()}
+},5000)})}
 
 function unlockPro(){
-paymentStatus.paid=true;lsSet('paid','true');lsDel('lastPaymentId');
+paymentStatus.paid=true;lsSet('paid','true');
 document.querySelectorAll('.locked').forEach(function(b){b.style.opacity='1';b.style.cursor='pointer';b.classList.remove('locked');var t=b.textContent.replace(' 🔒','');b.textContent=t});
 document.querySelectorAll('.pro-badge').forEach(function(b){b.remove()});
 var ub=document.getElementById('unlockProBtn');if(ub)ub.remove();
+try{localStorage.removeItem('lastPaymentId')}catch(e){}
 toast('🎉 PRO разблокирован!')}
   function showPaymentModal(){document.getElementById('paymentModal').classList.add('open')}
 function hidePaymentModal(){document.getElementById('paymentModal').classList.remove('open')}
@@ -954,6 +957,12 @@ checkPaymentStatus();
 if(lsGet('paid')==='true'){paymentStatus.paid=true;unlockPro()}
 else if(lsGet('lastPaymentId')){startPaymentCheck()}
 },1000);
+ document.addEventListener('visibilitychange',function(){
+if(document.visibilityState==='visible'&&lsGet('lastPaymentId')&&paymentStatus.paid!==true){startPaymentCheck()}
+});
+window.addEventListener('focus',function(){
+if(lsGet('lastPaymentId')&&paymentStatus.paid!==true){startPaymentCheck()}
+}); 
 setTimeout(addSecretLocks,3000);
 </script>
 </body>
